@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,12 +48,39 @@ const LearnerDashboard = () => {
     }
   ];
 
-  const enrolledCourses = [
-    { name: "JavaScript Fundamentals", progress: 85, instructor: "Dr. Sarah Wilson", nextLesson: "Async/Await" },
-    { name: "React Development", progress: 60, instructor: "Mike Johnson", nextLesson: "State Management" },
-    { name: "Python Basics", progress: 40, instructor: "Alice Brown", nextLesson: "Functions" },
-    { name: "UI/UX Design", progress: 92, instructor: "Emma Davis", nextLesson: "Prototyping" },
-  ];
+  // Remove hardcoded enrolledCourses, only use fetched data
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchEnrolledCourses = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/enrollments/my-requests', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) throw new Error('Failed to fetch enrollments');
+        const data = await res.json();
+        const courses = data.map(e => ({
+          name: e.courseId?.title || 'Unknown',
+          progress: 0, // TODO: Replace with real progress if available
+          instructor: e.courseId?.instructorId?.name || 'Unknown',
+          nextLesson: '', // TODO: Replace with real next lesson if available
+        }));
+        setEnrolledCourses(courses);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEnrolledCourses();
+  }, []);
 
   const recommendedCourses = [
     { name: "Advanced JavaScript", rating: 4.8, students: 2150, duration: "8 weeks" },
@@ -100,6 +128,9 @@ const LearnerDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
+                {loading && <div>Loading enrolled courses...</div>}
+                {error && <div style={{ color: 'red' }}>Error: {error}</div>}
+                {!loading && !error && enrolledCourses.length === 0 && <div>No enrolled courses found.</div>}
                 {enrolledCourses.map((course, index) => (
                   <div key={index} className="space-y-3">
                     <div className="flex items-center justify-between">
