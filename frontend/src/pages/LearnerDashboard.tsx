@@ -285,7 +285,7 @@ const LearnerDashboard = () => {
             <CardContent className="space-y-4">
               {recommendLoading && <div>Loading recommendations...</div>}
               {recommendError && <div style={{ color: 'red' }}>Error: {recommendError}</div>}
-              {!recommendLoading && !recommendError && recommendedIds.length === 0 && (
+              {(!recommendLoading && !recommendError && recommendedIds.length === 0) && (
                 <div>
                   No recommendations found.
                   <Button variant="outline" size="sm" className="ml-2" onClick={() => navigate('/learner/browse')}>
@@ -293,13 +293,21 @@ const LearnerDashboard = () => {
                   </Button>
                 </div>
               )}
+              {recommendedIds.length > 0 && catalog.length === 0 && (
+                <div>Loading course details...</div>
+              )}
               {recommendedIds.map((id) => {
                 const course = catalog.find(c => c._id === id);
+                if (!course) return (
+                  <div key={id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <h4 className="font-medium text-sm mb-2">CourseId: {id}</h4>
+                  </div>
+                );
                 return (
                   <div key={id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                    <h4 className="font-medium text-sm mb-2">{course ? course.title : id}</h4>
-                    {course && <div className="text-xs text-muted-foreground mb-1">{course.description}</div>}
-                    {course && <div className="text-xs text-muted-foreground">Category: {course.category}</div>}
+                    <h4 className="font-medium text-sm mb-2">{course.title}</h4>
+                    <div className="text-xs text-muted-foreground mb-1">{course.description}</div>
+                    <div className="text-xs text-muted-foreground">Category: {course.category}</div>
                   </div>
                 );
               })}
