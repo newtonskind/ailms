@@ -10,10 +10,13 @@ import {
   TrendingUp,
   UserPlus,
   Plus,
-  Settings
+  Settings,
+  Search
 } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const stats = [
     {
       title: "Total Users",
@@ -55,6 +58,10 @@ const AdminDashboard = () => {
             <p className="text-muted-foreground">Manage your learning platform</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => navigate('/learner/browse')}>
+              <Search className="w-4 h-4 mr-2" />
+              Browse Courses
+            </Button>
             <Button variant="outline" size="sm">
               <Settings className="w-4 h-4 mr-2" />
               Platform Settings

@@ -1,11 +1,18 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
+const cors = require('cors');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+
+// Enable CORS for frontend
+app.use(cors({
+  origin: 'http://localhost:8081',
+  credentials: true
+}));
 
 // Middleware
 app.use(express.json());

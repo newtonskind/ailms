@@ -13,6 +13,8 @@ import Analytics from "./pages/admin/Analytics";
 import CourseBrowse from "./pages/learner/CourseBrowse";
 import MyCourses from "./pages/instructor/MyCourses";
 import NotFound from "./pages/NotFound";
+import Register from "./pages/Register";
+import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +25,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/" element={<AuthSelection />} />
           
           {/* Admin Routes */}

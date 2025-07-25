@@ -15,41 +15,33 @@ import {
   Star,
   CheckCircle
 } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
+
+type Badge = {
+  _id: string;
+  name: string;
+  description?: string;
+  earnedAt?: string;
+};
+
+type EnrolledCourse = {
+  name: string;
+  progress: number;
+  instructor: string;
+  nextLesson: string;
+};
+
+type Course = {
+  _id: string;
+  title: string;
+  description?: string;
+  category?: string;
+};
 
 const LearnerDashboard = () => {
-  const stats = [
-    {
-      title: "Enrolled Courses",
-      value: 6,
-      description: "Active enrollments",
-      icon: BookOpen,
-      trend: { value: 2, isPositive: true }
-    },
-    {
-      title: "Badges Earned",
-      value: 12,
-      description: "Achievements unlocked",
-      icon: Award,
-      trend: { value: 3, isPositive: true }
-    },
-    {
-      title: "Study Time",
-      value: "24h",
-      description: "This week",
-      icon: Clock,
-      trend: { value: 15, isPositive: true }
-    },
-    {
-      title: "Completion Rate",
-      value: "87%",
-      description: "Overall progress",
-      icon: TrendingUp,
-      trend: { value: 8, isPositive: true }
-    }
-  ];
-
-  // Remove hardcoded enrolledCourses, only use fetched data
-  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const navigate = useNavigate();
+  // Remove hardcoded stats, compute enrolled courses dynamically
+  const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -82,6 +74,126 @@ const LearnerDashboard = () => {
     fetchEnrolledCourses();
   }, []);
 
+  // Remove dummy badges, fetch from API
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [badgesLoading, setBadgesLoading] = useState(true);
+  const [badgesError, setBadgesError] = useState(null);
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      setBadgesLoading(true);
+      setBadgesError(null);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/users/badges', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) throw new Error('Failed to fetch badges');
+        const data = await res.json();
+        setBadges(data);
+      } catch (err) {
+        setBadgesError((err as Error).message);
+      } finally {
+        setBadgesLoading(false);
+      }
+    };
+    fetchBadges();
+  }, []);
+
+  // Recommendation logic
+  const [recommendedIds, setRecommendedIds] = useState<string[]>([]);
+  const [recommendLoading, setRecommendLoading] = useState(true);
+  const [recommendError, setRecommendError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      setRecommendLoading(true);
+      setRecommendError(null);
+      // Only call if not already in sessionStorage
+      const cached = sessionStorage.getItem('recommendedCourseIds');
+      if (cached) {
+        setRecommendedIds(JSON.parse(cached));
+        setRecommendLoading(false);
+        return;
+      }
+      try {
+        const token = localStorage.getItem('token');
+        // Call backend endpoint for recommendations
+        const recRes = await fetch('http://localhost:5000/api/users/recommendations', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!recRes.ok) throw new Error('Failed to fetch recommendations');
+        const recIds = await recRes.json();
+        setRecommendedIds(recIds);
+        sessionStorage.setItem('recommendedCourseIds', JSON.stringify(recIds));
+      } catch (err) {
+        setRecommendError((err as Error).message);
+      } finally {
+        setRecommendLoading(false);
+      }
+    };
+    // Only run if enrolledCourses is loaded
+    if (!loading && enrolledCourses.length > 0) {
+      fetchRecommendations();
+    }
+  }, [loading, enrolledCourses]);
+
+  // Store catalog for recommendation display
+  const [catalog, setCatalog] = useState<Course[]>([]);
+
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/courses/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to fetch catalog');
+        const data: Course[] = await res.json();
+        setCatalog(data);
+      } catch (err) {
+        // Optionally handle error
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  // Calculate completed courses (progress === 100)
+  const completedCourses = enrolledCourses.filter((c: EnrolledCourse) => c.progress === 100).length;
+
+  const stats = [
+    {
+      title: "Enrolled Courses",
+      value: enrolledCourses.length,
+      description: "Active enrollments",
+      icon: BookOpen,
+      trend: { value: 0, isPositive: true } // TODO: Compute trend if needed
+    },
+    {
+      title: "Badges Earned",
+      value: badges.length,
+      description: "Achievements unlocked",
+      icon: Award,
+      trend: { value: 0, isPositive: true } // TODO: Compute trend if needed
+    },
+    {
+      title: "Total Courses Enrolled",
+      value: enrolledCourses.length,
+      description: "All enrollments",
+      icon: BookOpen,
+      trend: { value: 0, isPositive: true } // TODO: Compute trend if needed
+    },
+    {
+      title: "Courses Completed",
+      value: `${completedCourses} / ${enrolledCourses.length}`,
+      description: "Courses completed out of enrolled",
+      icon: TrendingUp,
+      trend: { value: 0, isPositive: true }
+    }
+  ];
+
   const recommendedCourses = [
     { name: "Advanced JavaScript", rating: 4.8, students: 2150, duration: "8 weeks" },
     { name: "Node.js Backend", rating: 4.7, students: 1890, duration: "6 weeks" },
@@ -98,11 +210,11 @@ const LearnerDashboard = () => {
             <p className="text-muted-foreground">Continue your learning journey</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm">
+            {/* <Button variant="outline" size="sm">
               <Award className="w-4 h-4 mr-2" />
               My Achievements
-            </Button>
-            <Button size="sm">
+            </Button> */}
+            <Button variant="outline" size="sm" onClick={() => navigate('/learner/browse')}>
               <Search className="w-4 h-4 mr-2" />
               Browse Courses
             </Button>
@@ -130,7 +242,14 @@ const LearnerDashboard = () => {
               <div className="space-y-6">
                 {loading && <div>Loading enrolled courses...</div>}
                 {error && <div style={{ color: 'red' }}>Error: {error}</div>}
-                {!loading && !error && enrolledCourses.length === 0 && <div>No enrolled courses found.</div>}
+                {!loading && !error && enrolledCourses.length === 0 && (
+                  <div>
+                    No enrolled courses found.
+                    <Button variant="outline" size="sm" className="ml-2" onClick={() => navigate('/learner/browse')}>
+                      Browse Courses
+                    </Button>
+                  </div>
+                )}
                 {enrolledCourses.map((course, index) => (
                   <div key={index} className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -164,25 +283,26 @@ const LearnerDashboard = () => {
               <CardTitle>Recommended for You</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recommendedCourses.map((course, index) => (
-                <div key={index} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <h4 className="font-medium text-sm mb-2">{course.name}</h4>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                      <span>{course.rating}</span>
-                    </div>
-                    <span>•</span>
-                    <span>{course.students.toLocaleString()} students</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{course.duration}</span>
-                    <Button size="sm" variant="outline">
-                      Enroll
-                    </Button>
-                  </div>
+              {recommendLoading && <div>Loading recommendations...</div>}
+              {recommendError && <div style={{ color: 'red' }}>Error: {recommendError}</div>}
+              {!recommendLoading && !recommendError && recommendedIds.length === 0 && (
+                <div>
+                  No recommendations found.
+                  <Button variant="outline" size="sm" className="ml-2" onClick={() => navigate('/learner/browse')}>
+                    Browse Courses
+                  </Button>
                 </div>
-              ))}
+              )}
+              {recommendedIds.map((id) => {
+                const course = catalog.find(c => c._id === id);
+                return (
+                  <div key={id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <h4 className="font-medium text-sm mb-2">{course ? course.title : id}</h4>
+                    {course && <div className="text-xs text-muted-foreground mb-1">{course.description}</div>}
+                    {course && <div className="text-xs text-muted-foreground">Category: {course.category}</div>}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>
@@ -197,22 +317,14 @@ const LearnerDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="flex gap-4 overflow-x-auto pb-2">
-              {[
-                { name: "JavaScript Master", description: "Completed JS Fundamentals", date: "2 days ago" },
-                { name: "Quick Learner", description: "Finished 3 lessons in one day", date: "1 week ago" },
-                { name: "Problem Solver", description: "Solved 50 coding challenges", date: "2 weeks ago" },
-              ].map((achievement, index) => (
-                <div key={index} className="flex-shrink-0 p-4 bg-primary/10 rounded-lg border min-w-64">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                      <Award className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{achievement.name}</h4>
-                      <p className="text-sm text-muted-foreground">{achievement.description}</p>
-                      <p className="text-xs text-muted-foreground">{achievement.date}</p>
-                    </div>
-                  </div>
+              {badgesLoading && <div>Loading badges...</div>}
+              {badgesError && <div style={{ color: 'red' }}>Error: {badgesError}</div>}
+              {!badgesLoading && !badgesError && badges.length === 0 && <div>No badges found.</div>}
+              {badges.map((badge: Badge) => (
+                <div key={badge._id} className="p-3 border rounded-lg min-w-[180px] bg-muted/50 flex-shrink-0">
+                  <div className="font-bold text-primary mb-1">{badge.name}</div>
+                  <div className="text-xs text-muted-foreground mb-1">{badge.description}</div>
+                  <div className="text-xs text-muted-foreground">{badge.earnedAt ? `Earned: ${new Date(badge.earnedAt).toLocaleDateString()}` : ''}</div>
                 </div>
               ))}
             </div>
